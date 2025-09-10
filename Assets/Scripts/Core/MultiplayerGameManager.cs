@@ -18,7 +18,7 @@ public class MultiplayerGameManager : NetworkBehaviour
         {
             Debug.Log("MultiplayerGameManager: Server spawned, initializing game...");
             // Delay initialization to ensure everything is ready
-            Invoke(nameof(InitializeGameServerRpc), 1f);
+            Invoke(nameof(InitializeGameServerRpc), 2f);
         }
     }
 
@@ -28,26 +28,30 @@ public class MultiplayerGameManager : NetworkBehaviour
         if (gameInitialized) return;
         
         Debug.Log("Initializing multiplayer game on server...");
+        Debug.Log($"Player One Grid: {(playerOneGrid != null ? "Found" : "NULL")}");
+        Debug.Log($"Player Two Grid: {(playerTwoGrid != null ? "Found" : "NULL")}");
         
         // Initialize both grids on the server
         if (playerOneGrid != null)
         {
+            Debug.Log("Initializing Player One grid...");
             playerOneGrid.Initialize();
-            Debug.Log("Player One grid initialized");
+            Debug.Log("Player One grid initialized successfully");
         }
         else
         {
-            Debug.LogError("Player One Grid is null!");
+            Debug.LogError("Player One Grid is null! Cannot initialize.");
         }
         
         if (playerTwoGrid != null)
         {
+            Debug.Log("Initializing Player Two grid...");
             playerTwoGrid.Initialize();
-            Debug.Log("Player Two grid initialized");
+            Debug.Log("Player Two grid initialized successfully");
         }
         else
         {
-            Debug.LogError("Player Two Grid is null!");
+            Debug.LogError("Player Two Grid is null! Cannot initialize.");
         }
         
         gameInitialized = true;

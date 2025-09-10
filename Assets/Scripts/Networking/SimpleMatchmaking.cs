@@ -73,7 +73,13 @@ namespace Networking
 
             // Check if we have a client connected (excluding host)
             int connectedClients = NetworkManager.Singleton.ConnectedClients.Count;
-            Debug.Log($"Checking connections: {connectedClients} clients connected");
+            Debug.Log($"[{Time.time:F1}] Checking connections: {connectedClients} clients connected");
+            
+            // List all connected client IDs for debugging
+            foreach (var clientId in NetworkManager.Singleton.ConnectedClientsIds)
+            {
+                Debug.Log($"  - Client ID: {clientId}");
+            }
             
             if (connectedClients >= 2)
             {

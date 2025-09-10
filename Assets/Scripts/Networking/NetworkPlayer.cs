@@ -49,9 +49,11 @@ namespace Networking
 
         public override void OnNetworkSpawn()
         {
+            Debug.Log($"NetworkPlayer OnNetworkSpawn - OwnerClientId: {OwnerClientId}, IsOwner: {IsOwner}, LocalClientId: {NetworkManager.Singleton.LocalClientId}");
+            
             if (IsOwner)
             {
-                // Owner-specific initialization (stub)
+                Debug.Log("NetworkPlayer: I am the owner of this player object!");
             }
         }
 

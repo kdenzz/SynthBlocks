@@ -14,31 +14,42 @@ public class InputRouter : MonoBehaviour
         // Check if we're in multiplayer mode
         isMultiplayer = NetworkManager.Singleton != null && NetworkManager.Singleton.IsConnectedClient;
         
-        Debug.Log($"InputRouter Start - isMultiplayer: {isMultiplayer}");
+        Debug.Log($"InputRouter Start - isMultiplayer: {isMultiplayer}, IsHost: {NetworkManager.Singleton?.IsHost}, IsClient: {NetworkManager.Singleton?.IsClient}");
         
         if (isMultiplayer)
         {
-            // Find our NetworkPlayer (the one we own)
-            var players = FindObjectsByType<NetworkPlayer>(FindObjectsSortMode.None);
-            foreach (var player in players)
-            {
-                if (player.IsOwner)
-                {
-                    networkPlayer = player;
-                    Debug.Log("Found owned NetworkPlayer");
-                    break;
-                }
-            }
-            
-            if (networkPlayer == null)
-            {
-                Debug.LogWarning("No owned NetworkPlayer found!");
-            }
+            // Wait a bit for NetworkPlayers to spawn, then try to find them
+            InvokeRepeating(nameof(FindNetworkPlayer), 0.5f, 0.5f);
         }
         else
         {
             Debug.Log("Single player mode - using local grid");
         }
+    }
+
+    private void FindNetworkPlayer()
+    {
+        if (networkPlayer != null) return; // Already found
+        
+        Debug.Log("Searching for NetworkPlayer...");
+        
+        // Find our NetworkPlayer (the one we own)
+        var players = FindObjectsByType<NetworkPlayer>(FindObjectsSortMode.None);
+        Debug.Log($"Found {players.Length} NetworkPlayer objects");
+        
+        foreach (var player in players)
+        {
+            Debug.Log($"  - NetworkPlayer: Owner={player.IsOwner}, ClientId={player.OwnerClientId}, LocalClientId={NetworkManager.Singleton.LocalClientId}");
+            if (player.IsOwner)
+            {
+                networkPlayer = player;
+                Debug.Log("Found owned NetworkPlayer!");
+                CancelInvoke(nameof(FindNetworkPlayer));
+                return;
+            }
+        }
+        
+        Debug.LogWarning("No owned NetworkPlayer found yet, will keep searching...");
     }
 
     public void MoveLeft()

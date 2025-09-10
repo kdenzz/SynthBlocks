@@ -1,5 +1,6 @@
 // Scripts/Core/GameManager.cs
 using UnityEngine;
+using Unity.Netcode;
 
 public class GameManager : MonoBehaviour
 {
@@ -14,13 +15,25 @@ public class GameManager : MonoBehaviour
     void Awake() { I = this; Application.targetFrameRate = 120; }
     void Start()
     {
-        if (grid != null) { grid.Initialize(); }
+        // Only initialize grid in single-player mode
+        if (grid != null && !IsMultiplayerMode()) 
+        { 
+            grid.Initialize(); 
+        }
         var hud = UI.GameHUD.I;
         if (hud != null) { hud.SetScore(score); }
     }
 
+    private bool IsMultiplayerMode()
+    {
+        return NetworkManager.Singleton != null && NetworkManager.Singleton.IsConnectedClient;
+    }
+
     void Update()
     {
+        // Only run game loop in single-player mode
+        if (IsMultiplayerMode()) return;
+        
         elapsed += Time.deltaTime;
         t += Time.deltaTime;
         if (t >= tick)

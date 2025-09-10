@@ -3,62 +3,49 @@ using Unity.Netcode;
 
 namespace Networking
 {
-    public class NetworkPlayerSpawner : NetworkBehaviour
+    public class NetworkPlayerSpawner : MonoBehaviour
     {
         [Header("Player Setup")]
         [SerializeField] private GameObject playerPrefab;
-        [SerializeField] private Transform[] spawnPoints;
 
-        public override void OnNetworkSpawn()
+        void Start()
         {
-            if (IsServer)
+            Debug.Log("NetworkPlayerSpawner Start - Setting up player spawning...");
+            
+            if (NetworkManager.Singleton != null)
             {
-                Debug.Log("NetworkPlayerSpawner: Server spawned, creating players...");
-                SpawnPlayers();
+                // Set the player prefab in NetworkManager
+                NetworkManager.Singleton.NetworkConfig.PlayerPrefab = playerPrefab;
+                Debug.Log("Player prefab set in NetworkManager");
+                
+                // Subscribe to connection events
+                NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnected;
+                NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnected;
+                
+                Debug.Log("NetworkPlayerSpawner: Ready to spawn players");
             }
-        }
-
-        private void SpawnPlayers()
-        {
-            if (playerPrefab == null)
+            else
             {
-                Debug.LogError("Player Prefab not assigned!");
-                return;
+                Debug.LogError("NetworkManager.Singleton is null!");
             }
-
-            // Spawn player for host
-            var hostPlayer = Instantiate(playerPrefab);
-            var hostNetworkObject = hostPlayer.GetComponent<NetworkObject>();
-            if (hostNetworkObject != null)
-            {
-                hostNetworkObject.SpawnAsPlayerObject(NetworkManager.Singleton.LocalClientId);
-                Debug.Log("Host player spawned");
-            }
-
-            // Wait for client to connect, then spawn their player
-            NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnected;
         }
 
         private void OnClientConnected(ulong clientId)
         {
-            if (!IsServer) return;
-
-            Debug.Log($"Client {clientId} connected, spawning their player...");
-            
-            var clientPlayer = Instantiate(playerPrefab);
-            var clientNetworkObject = clientPlayer.GetComponent<NetworkObject>();
-            if (clientNetworkObject != null)
-            {
-                clientNetworkObject.SpawnAsPlayerObject(clientId);
-                Debug.Log($"Client {clientId} player spawned");
-            }
+            Debug.Log($"Client {clientId} connected - NetworkManager will auto-spawn player");
         }
 
-        public override void OnNetworkDespawn()
+        private void OnClientDisconnected(ulong clientId)
         {
-            if (IsServer && NetworkManager.Singleton != null)
+            Debug.Log($"Client {clientId} disconnected");
+        }
+
+        void OnDestroy()
+        {
+            if (NetworkManager.Singleton != null)
             {
                 NetworkManager.Singleton.OnClientConnectedCallback -= OnClientConnected;
+                NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnected;
             }
         }
     }
