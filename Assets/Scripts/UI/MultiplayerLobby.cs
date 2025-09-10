@@ -6,12 +6,17 @@ namespace UI
 {
     public class MultiplayerLobby : MonoBehaviour
     {
+        [SerializeField] private string matchmakingSceneName = "Matchmaking";
+
         public void StartHost()
         {
             if (NetworkManager.Singleton != null)
             {
-                NetworkManager.Singleton.StartHost();
-                SceneManager.LoadScene("GameplayMultiplayer");
+                bool success = NetworkManager.Singleton.StartHost();
+                if (success)
+                {
+                    SceneManager.LoadScene(matchmakingSceneName);
+                }
             }
         }
 
@@ -19,8 +24,11 @@ namespace UI
         {
             if (NetworkManager.Singleton != null)
             {
-                NetworkManager.Singleton.StartClient();
-                SceneManager.LoadScene("GameplayMultiplayer");
+                bool success = NetworkManager.Singleton.StartClient();
+                if (success)
+                {
+                    SceneManager.LoadScene(matchmakingSceneName);
+                }
             }
         }
     }

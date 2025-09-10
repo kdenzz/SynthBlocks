@@ -8,6 +8,7 @@ namespace UI
         [SerializeField] private string localSceneName = "GameplayLocal";
         [SerializeField] private GameObject lobbyPanel;
         [SerializeField] private GameObject mainMenuPanel;
+        [SerializeField] private GameObject relayPanel;
         public void PlaySolo()
         {
             if (!string.IsNullOrEmpty(localSceneName))
@@ -23,6 +24,12 @@ namespace UI
                 mainMenuPanel.SetActive(false);
                 lobbyPanel.SetActive(true);
             }
+        }
+
+        public void PlayRelay()
+        {
+            mainMenuPanel.SetActive(false);
+            relayPanel.SetActive(true);
         }
     }
 }

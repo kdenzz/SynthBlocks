@@ -68,14 +68,14 @@ using RelayJoinAllocation = Unity.Services.Relay.Models.JoinAllocation;
                       hostPanel.SetActive(true);
                   }
 
-                  // Start host
-                  bool success = NetworkManager.Singleton.StartHost();
-                  if (success)
-                  {
-                      Debug.Log($"Host started with join code: {joinCode}");
-                      // Load gameplay scene after a short delay
-                      Invoke(nameof(LoadGameplayScene), 1f);
-                  }
+                   // Start host
+                   bool success = NetworkManager.Singleton.StartHost();
+                   if (success)
+                   {
+                       Debug.Log($"Host started with join code: {joinCode}");
+                       // Load matchmaking scene
+                       UnityEngine.SceneManagement.SceneManager.LoadScene("Matchmaking");
+                   }
               }
               catch (System.Exception e)
               {
@@ -114,14 +114,14 @@ using RelayJoinAllocation = Unity.Services.Relay.Models.JoinAllocation;
                       joinAllocation.HostConnectionData
                   );
 
-                  // Start client
-                  bool success = NetworkManager.Singleton.StartClient();
-                  if (success)
-                  {
-                      Debug.Log($"Client started, joining with code: {joinCode}");
-                      // Load gameplay scene after a short delay
-                      Invoke(nameof(LoadGameplayScene), 1f);
-                  }
+                   // Start client
+                   bool success = NetworkManager.Singleton.StartClient();
+                   if (success)
+                   {
+                       Debug.Log($"Client started, joining with code: {joinCode}");
+                       // Load matchmaking scene
+                       UnityEngine.SceneManagement.SceneManager.LoadScene("Matchmaking");
+                   }
               }
               catch (System.Exception e)
               {

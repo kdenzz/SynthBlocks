@@ -14,6 +14,8 @@ public class InputRouter : MonoBehaviour
         // Check if we're in multiplayer mode
         isMultiplayer = NetworkManager.Singleton != null && NetworkManager.Singleton.IsConnectedClient;
         
+        Debug.Log($"InputRouter Start - isMultiplayer: {isMultiplayer}");
+        
         if (isMultiplayer)
         {
             // Find our NetworkPlayer (the one we own)
@@ -23,9 +25,19 @@ public class InputRouter : MonoBehaviour
                 if (player.IsOwner)
                 {
                     networkPlayer = player;
+                    Debug.Log("Found owned NetworkPlayer");
                     break;
                 }
             }
+            
+            if (networkPlayer == null)
+            {
+                Debug.LogWarning("No owned NetworkPlayer found!");
+            }
+        }
+        else
+        {
+            Debug.Log("Single player mode - using local grid");
         }
     }
 
