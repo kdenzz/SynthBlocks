@@ -47,6 +47,9 @@ public class GridManager : MonoBehaviour
         // Only run game loop in multiplayer mode (single-player uses GameManager)
         if (!isMultiplayer) return;
         
+        // In multiplayer, only run if this grid is assigned to the current client
+        if (!IsAssignedToCurrentClient()) return;
+        
         if (IsGameOver) return;
         
         tickTimer += Time.deltaTime;
@@ -57,6 +60,26 @@ public class GridManager : MonoBehaviour
             tickTimer = 0f;
             TickFall();
         }
+    }
+    
+    private bool IsAssignedToCurrentClient()
+    {
+        if (NetworkManager.Singleton == null) return false;
+        
+        // Check if this grid is assigned to the current client
+        var multiplayerManager = FindFirstObjectByType<MultiplayerGameManager>();
+        if (multiplayerManager == null) return false;
+        
+        bool isHost = NetworkManager.Singleton.IsHost;
+        GridManager assignedGrid = isHost ? multiplayerManager.GetPlayerOneGrid() : multiplayerManager.GetPlayerTwoGrid();
+        
+        bool isAssigned = assignedGrid == this;
+        if (isAssigned)
+        {
+            Debug.Log($"GridManager {gameObject.name} is assigned to current client ({(isHost ? "Host" : "Client")})");
+        }
+        
+        return isAssigned;
     }
 
     public void Initialize()
@@ -150,7 +173,7 @@ public class GridManager : MonoBehaviour
         activeType = nextPieces.Dequeue();
         activeRotation = 0;
         
-        Debug.Log($"Spawning piece: {activeType} (Remaining in bag: {nextPieces.Count})");
+        Debug.Log($"GridManager {gameObject.name} spawning piece: {activeType} (Remaining in bag: {nextPieces.Count})");
 
         // spawn anchor near top-center; adjust for I/O width
         int centerX = gridWidth / 2;
@@ -296,13 +319,49 @@ public class GridManager : MonoBehaviour
     private void RefillBag()
     {
         var bag = new List<TetrominoType> { TetrominoType.I, TetrominoType.O, TetrominoType.T, TetrominoType.S, TetrominoType.Z, TetrominoType.J, TetrominoType.L };
-        // Fisher-Yates
+        
+        // Use synchronized random for multiplayer fairness
+        if (isMultiplayer)
+        {
+            // Request synchronized bag from server
+            RequestSynchronizedBagServerRpc();
+        }
+        else
+        {
+            // Single player - use local random
+            ShuffleBag(bag);
+            foreach (var t in bag) nextPieces.Enqueue(t);
+        }
+    }
+    
+    private void ShuffleBag(List<TetrominoType> bag)
+    {
+        // Fisher-Yates shuffle
         for (int i = bag.Count - 1; i > 0; i--)
         {
             int j = Random.Range(0, i + 1);
             (bag[i], bag[j]) = (bag[j], bag[i]);
         }
+    }
+    
+    [ServerRpc(RequireOwnership = false)]
+    private void RequestSynchronizedBagServerRpc()
+    {
+        // Server generates the bag and sends to all clients
+        var bag = new List<TetrominoType> { TetrominoType.I, TetrominoType.O, TetrominoType.T, TetrominoType.S, TetrominoType.Z, TetrominoType.J, TetrominoType.L };
+        ShuffleBag(bag);
+        
+        // Send to all clients
+        SendSynchronizedBagClientRpc(bag.ToArray());
+    }
+    
+    [ClientRpc]
+    private void SendSynchronizedBagClientRpc(TetrominoType[] bag)
+    {
+        // All clients receive the same bag
+        nextPieces.Clear();
         foreach (var t in bag) nextPieces.Enqueue(t);
+        Debug.Log($"Received synchronized bag with {bag.Length} pieces");
     }
 
     private bool TryRotate(int dir)

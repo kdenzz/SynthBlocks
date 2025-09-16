@@ -31,17 +31,17 @@ public class MultiplayerGameManager : NetworkBehaviour
         Debug.Log($"Player One Grid: {(playerOneGrid != null ? "Found" : "NULL")}");
         Debug.Log($"Player Two Grid: {(playerTwoGrid != null ? "Found" : "NULL")}");
         
-        // Initialize both grids on the server
+        // Set up grid references and events, but don't initialize yet
+        // Each client will initialize their own grid
         if (playerOneGrid != null)
         {
-            Debug.Log("Initializing Player One grid...");
-            playerOneGrid.Initialize();
+            Debug.Log("Setting up Player One grid...");
             // Subscribe to game over event
             playerOneGrid.OnGameOver += () => {
                 Debug.Log("Player One Game Over!");
                 UI.GameHUD.I?.ShowGameOver();
             };
-            Debug.Log("Player One grid initialized successfully");
+            Debug.Log("Player One grid setup complete");
         }
         else
         {
@@ -50,14 +50,13 @@ public class MultiplayerGameManager : NetworkBehaviour
         
         if (playerTwoGrid != null)
         {
-            Debug.Log("Initializing Player Two grid...");
-            playerTwoGrid.Initialize();
+            Debug.Log("Setting up Player Two grid...");
             // Subscribe to game over event
             playerTwoGrid.OnGameOver += () => {
                 Debug.Log("Player Two Game Over!");
                 UI.GameHUD.I?.ShowGameOver();
             };
-            Debug.Log("Player Two grid initialized successfully");
+            Debug.Log("Player Two grid setup complete");
         }
         else
         {
@@ -83,6 +82,9 @@ public class MultiplayerGameManager : NetworkBehaviour
             UI.GameHUD.I.SetLines(0);
         }
         
+        // Initialize the appropriate grid for this client
+        InitializeClientGrid();
+        
         // Enable input for the appropriate player
         var inputRouter = FindFirstObjectByType<InputRouter>();
         if (inputRouter != null)
@@ -98,6 +100,25 @@ public class MultiplayerGameManager : NetworkBehaviour
             {
                 Debug.Log("This client is Player Two - controlling right grid");
             }
+        }
+    }
+    
+    private void InitializeClientGrid()
+    {
+        // Determine which grid this client should control
+        // Host (ClientId 0) controls playerOneGrid, Client (ClientId 1) controls playerTwoGrid
+        bool isHost = NetworkManager.Singleton.IsHost;
+        GridManager clientGrid = isHost ? playerOneGrid : playerTwoGrid;
+        
+        if (clientGrid != null)
+        {
+            Debug.Log($"Initializing {(isHost ? "Player One" : "Player Two")} grid for this client...");
+            clientGrid.Initialize();
+            Debug.Log($"Client grid initialized successfully");
+        }
+        else
+        {
+            Debug.LogError($"Client grid is null! Cannot initialize for {(isHost ? "host" : "client")}.");
         }
     }
 
