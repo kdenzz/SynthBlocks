@@ -18,8 +18,8 @@ public class InputRouter : MonoBehaviour
         
         if (isMultiplayer)
         {
-            // Wait a bit for NetworkPlayers to spawn, then try to find them
-            InvokeRepeating(nameof(FindNetworkPlayer), 0.5f, 0.5f);
+            // Wait longer for NetworkPlayers to spawn, then try to find them
+            InvokeRepeating(nameof(FindNetworkPlayer), 1f, 0.5f);
         }
         else
         {
@@ -32,14 +32,38 @@ public class InputRouter : MonoBehaviour
         if (networkPlayer != null) return; // Already found
         
         Debug.Log("Searching for NetworkPlayer...");
+        Debug.Log($"NetworkManager State: IsHost={NetworkManager.Singleton?.IsHost}, IsClient={NetworkManager.Singleton?.IsClient}, IsConnectedClient={NetworkManager.Singleton?.IsConnectedClient}");
+        Debug.Log($"Connected Clients: {NetworkManager.Singleton?.ConnectedClients.Count}");
+        
+        // Check if we're even connected
+        if (NetworkManager.Singleton == null || !NetworkManager.Singleton.IsConnectedClient)
+        {
+            Debug.LogWarning("Not connected to network, stopping search");
+            CancelInvoke(nameof(FindNetworkPlayer));
+            return;
+        }
         
         // Find our NetworkPlayer (the one we own)
         var players = FindObjectsByType<NetworkPlayer>(FindObjectsSortMode.None);
         Debug.Log($"Found {players.Length} NetworkPlayer objects");
         
+        // Also check all NetworkObjects
+        var allNetworkObjects = FindObjectsByType<NetworkObject>(FindObjectsSortMode.None);
+        Debug.Log($"Found {allNetworkObjects.Length} NetworkObject objects total");
+        
+        // Check if NetworkManager has a player prefab assigned
+        if (NetworkManager.Singleton.NetworkConfig.PlayerPrefab == null)
+        {
+            Debug.LogError("NetworkManager.PlayerPrefab is null! This will prevent NetworkPlayer spawning.");
+        }
+        else
+        {
+            Debug.Log($"NetworkManager.PlayerPrefab: {NetworkManager.Singleton.NetworkConfig.PlayerPrefab.name}");
+        }
+        
         foreach (var player in players)
         {
-            Debug.Log($"  - NetworkPlayer: Owner={player.IsOwner}, ClientId={player.OwnerClientId}, LocalClientId={NetworkManager.Singleton.LocalClientId}");
+            Debug.Log($"  - NetworkPlayer: Owner={player.IsOwner}, ClientId={player.OwnerClientId}, LocalClientId={NetworkManager.Singleton.LocalClientId}, IsSpawned={player.IsSpawned}");
             if (player.IsOwner)
             {
                 networkPlayer = player;
@@ -47,6 +71,16 @@ public class InputRouter : MonoBehaviour
                 CancelInvoke(nameof(FindNetworkPlayer));
                 return;
             }
+        }
+        
+        // Fallback: if we can't find an owned NetworkPlayer, try to use any NetworkPlayer
+        // This might happen if there's an issue with ownership detection
+        if (players.Length > 0)
+        {
+            Debug.LogWarning($"No owned NetworkPlayer found, but found {players.Length} NetworkPlayer objects. Using first one as fallback.");
+            networkPlayer = players[0];
+            CancelInvoke(nameof(FindNetworkPlayer));
+            return;
         }
         
         Debug.LogWarning("No owned NetworkPlayer found yet, will keep searching...");

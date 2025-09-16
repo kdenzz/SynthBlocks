@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using Unity.Netcode;
 
 public class GridManager : MonoBehaviour
 {
@@ -26,10 +27,36 @@ public class GridManager : MonoBehaviour
     public System.Action OnGameOver;
 
     private int pendingGarbage;
+    private float tickTimer = 0f;
+    private bool isMultiplayer = false;
 
     void Awake()
     {
         grid = new BlockController[gridWidth, gridHeight];
+    }
+
+    void Start()
+    {
+        // Check if we're in multiplayer mode
+        isMultiplayer = NetworkManager.Singleton != null && NetworkManager.Singleton.IsConnectedClient;
+        Debug.Log($"GridManager Start - isMultiplayer: {isMultiplayer}");
+    }
+
+    void Update()
+    {
+        // Only run game loop in multiplayer mode (single-player uses GameManager)
+        if (!isMultiplayer) return;
+        
+        if (IsGameOver) return;
+        
+        tickTimer += Time.deltaTime;
+        float tick = GetRecommendedTick();
+        
+        if (tickTimer >= tick)
+        {
+            tickTimer = 0f;
+            TickFall();
+        }
     }
 
     public void Initialize()
@@ -122,6 +149,8 @@ public class GridManager : MonoBehaviour
         if (nextPieces.Count == 0) RefillBag();
         activeType = nextPieces.Dequeue();
         activeRotation = 0;
+        
+        Debug.Log($"Spawning piece: {activeType} (Remaining in bag: {nextPieces.Count})");
 
         // spawn anchor near top-center; adjust for I/O width
         int centerX = gridWidth / 2;
@@ -165,12 +194,22 @@ public class GridManager : MonoBehaviour
 
     private void UpdateActiveBlockTransforms()
     {
-        var cells = new List<Vector2Int>(Tetromino.GetCells(activeType, activeRotation, activeAnchor));
-        for (int i = 0; i < activeBlocks.Count && i < cells.Count; i++)
+        // Clear existing active blocks first
+        foreach (var block in activeBlocks)
         {
-            var b = activeBlocks[i];
-            var c = cells[i];
-            b.SetGridPosition(c.x, c.y, cellSize);
+            if (block != null) Destroy(block.gameObject);
+        }
+        activeBlocks.Clear();
+        
+        // Create new blocks for current piece
+        var cells = Tetromino.GetCells(activeType, activeRotation, activeAnchor);
+        foreach (var cell in cells)
+        {
+            if (!InBounds(cell.x, cell.y) || grid[cell.x, cell.y] != null) continue;
+            var go = Instantiate(blockPrefab);
+            var bc = go.GetComponent<BlockController>();
+            bc.SetGridPosition(cell.x, cell.y, cellSize);
+            activeBlocks.Add(bc);
         }
     }
 

@@ -41,6 +41,8 @@ namespace Networking
             {
                 statusText.text = "Connected to host!\nPlayers: 2/2";
                 Debug.Log("Client: Connected, waiting for countdown...");
+                // Client should start countdown immediately since host already detected connection
+                StartCountdown();
             }
 
             if (cancelButton != null)

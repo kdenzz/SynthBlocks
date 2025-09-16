@@ -11,9 +11,9 @@ namespace Networking
         public void InputMoveServerRpc(int dx)
         {
             // Route to this player's grid on server
-            var manager = FindFirstObjectByType<GameNetworkManager>();
+            var manager = FindFirstObjectByType<MultiplayerGameManager>();
             if (manager == null) return;
-            var grid = OwnerClientId == manager.NetworkManager.LocalClientId ? manager.GetPlayerGrid(0) : manager.GetPlayerGrid(1);
+            var grid = GetPlayerGrid(manager);
             if (grid == null) return;
             if (dx < 0) grid.MoveLeft();
             else if (dx > 0) grid.MoveRight();
@@ -22,27 +22,27 @@ namespace Networking
         [ServerRpc]
         public void InputSoftDropServerRpc()
         {
-            var manager = FindFirstObjectByType<GameNetworkManager>();
+            var manager = FindFirstObjectByType<MultiplayerGameManager>();
             if (manager == null) return;
-            var grid = OwnerClientId == manager.NetworkManager.LocalClientId ? manager.GetPlayerGrid(0) : manager.GetPlayerGrid(1);
+            var grid = GetPlayerGrid(manager);
             grid?.SoftDrop();
         }
 
         [ServerRpc]
         public void InputHardDropServerRpc()
         {
-            var manager = FindFirstObjectByType<GameNetworkManager>();
+            var manager = FindFirstObjectByType<MultiplayerGameManager>();
             if (manager == null) return;
-            var grid = OwnerClientId == manager.NetworkManager.LocalClientId ? manager.GetPlayerGrid(0) : manager.GetPlayerGrid(1);
+            var grid = GetPlayerGrid(manager);
             grid?.HardDrop();
         }
 
         [ServerRpc]
         public void InputRotateServerRpc(int dir)
         {
-            var manager = FindFirstObjectByType<GameNetworkManager>();
+            var manager = FindFirstObjectByType<MultiplayerGameManager>();
             if (manager == null) return;
-            var grid = OwnerClientId == manager.NetworkManager.LocalClientId ? manager.GetPlayerGrid(0) : manager.GetPlayerGrid(1);
+            var grid = GetPlayerGrid(manager);
             if (grid == null) return;
             if (dir > 0) grid.RotateCW(); else grid.RotateCCW();
         }
@@ -61,6 +61,14 @@ namespace Networking
         public void AddScoreServerRpc(int amount)
         {
             score.Value += amount;
+        }
+
+        private GridManager GetPlayerGrid(MultiplayerGameManager manager)
+        {
+            // Determine which grid this player controls
+            // Player 1 (host) controls playerOneGrid, Player 2 (client) controls playerTwoGrid
+            bool isPlayerOne = OwnerClientId == NetworkManager.Singleton.LocalClientId;
+            return isPlayerOne ? manager.GetPlayerOneGrid() : manager.GetPlayerTwoGrid();
         }
     }
 }

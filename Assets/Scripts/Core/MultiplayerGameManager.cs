@@ -36,6 +36,11 @@ public class MultiplayerGameManager : NetworkBehaviour
         {
             Debug.Log("Initializing Player One grid...");
             playerOneGrid.Initialize();
+            // Subscribe to game over event
+            playerOneGrid.OnGameOver += () => {
+                Debug.Log("Player One Game Over!");
+                UI.GameHUD.I?.ShowGameOver();
+            };
             Debug.Log("Player One grid initialized successfully");
         }
         else
@@ -47,6 +52,11 @@ public class MultiplayerGameManager : NetworkBehaviour
         {
             Debug.Log("Initializing Player Two grid...");
             playerTwoGrid.Initialize();
+            // Subscribe to game over event
+            playerTwoGrid.OnGameOver += () => {
+                Debug.Log("Player Two Game Over!");
+                UI.GameHUD.I?.ShowGameOver();
+            };
             Debug.Log("Player Two grid initialized successfully");
         }
         else
@@ -65,6 +75,14 @@ public class MultiplayerGameManager : NetworkBehaviour
     {
         Debug.Log("Game is ready! Both players can start playing.");
         
+        // Update UI with initial values
+        if (UI.GameHUD.I != null)
+        {
+            UI.GameHUD.I.SetScore(0);
+            UI.GameHUD.I.SetLevel(1);
+            UI.GameHUD.I.SetLines(0);
+        }
+        
         // Enable input for the appropriate player
         var inputRouter = FindFirstObjectByType<InputRouter>();
         if (inputRouter != null)
@@ -74,13 +92,11 @@ public class MultiplayerGameManager : NetworkBehaviour
             
             if (isPlayerOne)
             {
-                Debug.Log("This client is Player One");
-                // Player One controls the first grid
+                Debug.Log("This client is Player One - controlling left grid");
             }
             else
             {
-                Debug.Log("This client is Player Two");
-                // Player Two controls the second grid
+                Debug.Log("This client is Player Two - controlling right grid");
             }
         }
     }
@@ -102,5 +118,15 @@ public class MultiplayerGameManager : NetworkBehaviour
         {
             Debug.LogError("Game Manager not assigned!");
         }
+    }
+
+    public GridManager GetPlayerOneGrid()
+    {
+        return playerOneGrid;
+    }
+
+    public GridManager GetPlayerTwoGrid()
+    {
+        return playerTwoGrid;
     }
 }
