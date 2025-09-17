@@ -2059,9 +2059,9 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 1456435255}
-        m_TargetAssemblyTypeName: Networking.SimpleMatchmaking, Assembly-CSharp
-        m_MethodName: 
+      - m_Target: {fileID: 1456435259}
+        m_TargetAssemblyTypeName: Networking.MatchmakingManager, Assembly-CSharp
+        m_MethodName: ForceStart
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}

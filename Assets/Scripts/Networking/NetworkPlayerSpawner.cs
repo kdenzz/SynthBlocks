@@ -89,6 +89,26 @@ namespace Networking
         private void OnClientDisconnected(ulong clientId)
         {
             Debug.Log($"Client {clientId} disconnected");
+            
+            // Only the host should handle NetworkPlayer cleanup
+            if (NetworkManager.Singleton.IsHost)
+            {
+                // Find and despawn the NetworkPlayer for the disconnected client
+                var players = FindObjectsByType<NetworkPlayer>(FindObjectsSortMode.None);
+                foreach (var player in players)
+                {
+                    if (player.OwnerClientId == clientId)
+                    {
+                        Debug.Log($"Host: Despawning NetworkPlayer for disconnected client {clientId}");
+                        var networkObject = player.GetComponent<NetworkObject>();
+                        if (networkObject != null && networkObject.IsSpawned)
+                        {
+                            networkObject.Despawn();
+                        }
+                        break;
+                    }
+                }
+            }
         }
 
         void OnDestroy()

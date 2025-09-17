@@ -7,7 +7,7 @@ namespace Networking
     {
         public NetworkVariable<int> score = new(writePerm: NetworkVariableWritePermission.Server);
 
-        [ServerRpc]
+        [ServerRpc(RequireOwnership = false)]
         public void InputMoveServerRpc(int dx)
         {
             // Route to this player's grid on server
@@ -19,7 +19,7 @@ namespace Networking
             else if (dx > 0) grid.MoveRight();
         }
 
-        [ServerRpc]
+        [ServerRpc(RequireOwnership = false)]
         public void InputSoftDropServerRpc()
         {
             var manager = FindFirstObjectByType<MultiplayerGameManager>();
@@ -28,7 +28,7 @@ namespace Networking
             grid?.SoftDrop();
         }
 
-        [ServerRpc]
+        [ServerRpc(RequireOwnership = false)]
         public void InputHardDropServerRpc()
         {
             var manager = FindFirstObjectByType<MultiplayerGameManager>();
@@ -37,7 +37,7 @@ namespace Networking
             grid?.HardDrop();
         }
 
-        [ServerRpc]
+        [ServerRpc(RequireOwnership = false)]
         public void InputRotateServerRpc(int dir)
         {
             var manager = FindFirstObjectByType<MultiplayerGameManager>();
@@ -55,9 +55,39 @@ namespace Networking
             {
                 Debug.Log("NetworkPlayer: I am the owner of this player object!");
             }
+            
+            // Make sure this NetworkPlayer persists across scene changes
+            DontDestroyOnLoad(gameObject);
+            
+            // Add a component to prevent accidental destruction
+            if (!gameObject.GetComponent<NetworkObjectProtection>())
+            {
+                gameObject.AddComponent<NetworkObjectProtection>();
+            }
+        }
+        
+        public override void OnNetworkDespawn()
+        {
+            Debug.Log($"NetworkPlayer OnNetworkDespawn - OwnerClientId: {OwnerClientId}, IsOwner: {IsOwner}");
+            
+            // Only destroy on the host or owner
+            if (NetworkManager.Singleton.IsHost || IsOwner)
+            {
+                Debug.Log("NetworkPlayer: Properly despawning NetworkPlayer");
+            }
+            else
+            {
+                Debug.LogWarning("NetworkPlayer: Non-host client attempting to despawn NetworkPlayer - this should be handled by host");
+            }
+        }
+        
+        void OnDestroy()
+        {
+            // Log the destruction attempt for debugging
+            Debug.Log($"NetworkPlayer OnDestroy called - IsHost: {NetworkManager.Singleton?.IsHost}, IsOwner: {IsOwner}");
         }
 
-        [ServerRpc]
+        [ServerRpc(RequireOwnership = false)]
         public void AddScoreServerRpc(int amount)
         {
             score.Value += amount;
@@ -67,7 +97,9 @@ namespace Networking
         {
             // Determine which grid this player controls
             // Player 1 (host) controls playerOneGrid, Player 2 (client) controls playerTwoGrid
-            bool isPlayerOne = OwnerClientId == NetworkManager.Singleton.LocalClientId;
+            // Use OwnerClientId to determine which player this is
+            bool isPlayerOne = OwnerClientId == 0; // Host is always client ID 0
+            Debug.Log($"GetPlayerGrid: OwnerClientId={OwnerClientId}, isPlayerOne={isPlayerOne}");
             return isPlayerOne ? manager.GetPlayerOneGrid() : manager.GetPlayerTwoGrid();
         }
     }

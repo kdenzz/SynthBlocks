@@ -22,6 +22,9 @@ public class InputRouter : MonoBehaviour
             FindCorrectGridManager();
             // Wait longer for NetworkPlayers to spawn, then try to find them
             InvokeRepeating(nameof(FindNetworkPlayer), 1f, 0.5f);
+            
+            // Also set up a fallback to use local grid if NetworkPlayer isn't found after 5 seconds
+            Invoke(nameof(EnableLocalGridFallback), 5f);
         }
         else
         {
@@ -108,8 +111,11 @@ public class InputRouter : MonoBehaviour
             Debug.Log($"NetworkManager.PlayerPrefab: {NetworkManager.Singleton.NetworkConfig.PlayerPrefab.name}");
         }
         
+        // First, try to find our owned NetworkPlayer
         foreach (var player in players)
         {
+            if (player == null || !player.IsSpawned) continue; // Skip destroyed or unspawned players
+            
             Debug.Log($"  - NetworkPlayer: Owner={player.IsOwner}, ClientId={player.OwnerClientId}, LocalClientId={NetworkManager.Singleton.LocalClientId}, IsSpawned={player.IsSpawned}");
             if (player.IsOwner)
             {
@@ -120,40 +126,69 @@ public class InputRouter : MonoBehaviour
             }
         }
         
-        // Fallback: if we can't find an owned NetworkPlayer, try to use any NetworkPlayer
-        // This might happen if there's an issue with ownership detection
-        if (players.Length > 0)
+        // If no owned NetworkPlayer found, use any available NetworkPlayer
+        // This is acceptable since we set RequireOwnership = false on ServerRpc methods
+        foreach (var player in players)
         {
-            Debug.LogWarning($"No owned NetworkPlayer found, but found {players.Length} NetworkPlayer objects. Using first one as fallback.");
-            networkPlayer = players[0];
+            if (player == null || !player.IsSpawned) continue; // Skip destroyed or unspawned players
+            
+            Debug.Log($"Using NetworkPlayer: Owner={player.IsOwner}, ClientId={player.OwnerClientId}");
+            networkPlayer = player;
+            Debug.Log("Using available NetworkPlayer (ownership not required due to RequireOwnership = false)");
             CancelInvoke(nameof(FindNetworkPlayer));
             return;
         }
         
-        Debug.LogWarning("No owned NetworkPlayer found yet, will keep searching...");
+        Debug.LogWarning("No valid NetworkPlayer found yet, will keep searching...");
+    }
+    
+    private void EnableLocalGridFallback()
+    {
+        if (networkPlayer == null && localGrid != null)
+        {
+            Debug.LogWarning("InputRouter: NetworkPlayer not found after 5 seconds, enabling local grid fallback for input");
+            // This will make the input methods use localGrid instead of networkPlayer
+            // The input methods already have this fallback logic
+        }
     }
 
     public void MoveLeft()
     {
+        Debug.Log($"InputRouter.MoveLeft - isMultiplayer: {isMultiplayer}, networkPlayer: {networkPlayer != null}, localGrid: {localGrid != null}");
+        
         if (isMultiplayer && networkPlayer != null)
         {
+            Debug.Log("InputRouter: Sending move left via NetworkPlayer");
             networkPlayer.InputMoveServerRpc(-1);
         }
         else if (localGrid != null)
         {
+            Debug.Log("InputRouter: Sending move left via local grid");
             localGrid.MoveLeft();
+        }
+        else
+        {
+            Debug.LogWarning("InputRouter: No valid input target found for MoveLeft!");
         }
     }
 
     public void MoveRight()
     {
+        Debug.Log($"InputRouter.MoveRight - isMultiplayer: {isMultiplayer}, networkPlayer: {networkPlayer != null}, localGrid: {localGrid != null}");
+        
         if (isMultiplayer && networkPlayer != null)
         {
+            Debug.Log("InputRouter: Sending move right via NetworkPlayer");
             networkPlayer.InputMoveServerRpc(1);
         }
         else if (localGrid != null)
         {
+            Debug.Log("InputRouter: Sending move right via local grid");
             localGrid.MoveRight();
+        }
+        else
+        {
+            Debug.LogWarning("InputRouter: No valid input target found for MoveRight!");
         }
     }
 
