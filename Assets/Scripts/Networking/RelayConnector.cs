@@ -90,7 +90,12 @@ using RelayJoinAllocation = Unity.Services.Relay.Models.JoinAllocation;
                    if (success)
                    {
                        Debug.Log($"Host started with join code: {joinCode}");
-                       // Load matchmaking scene
+                       
+                       // Store join code for the matchmaking scene
+                       PlayerPrefs.SetString("RelayJoinCode", joinCode);
+                       PlayerPrefs.Save();
+                       
+                       // Load matchmaking scene instantly
                        UnityEngine.SceneManagement.SceneManager.LoadScene("Matchmaking");
                    }
                    else

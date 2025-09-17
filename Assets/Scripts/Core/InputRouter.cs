@@ -18,12 +18,59 @@ public class InputRouter : MonoBehaviour
         
         if (isMultiplayer)
         {
+            // Find the correct GridManager for this client
+            FindCorrectGridManager();
             // Wait longer for NetworkPlayers to spawn, then try to find them
             InvokeRepeating(nameof(FindNetworkPlayer), 1f, 0.5f);
         }
         else
         {
             Debug.Log("Single player mode - using local grid");
+        }
+    }
+    
+    private void FindCorrectGridManager()
+    {
+        if (localGrid != null) return; // Already assigned
+        
+        Debug.Log("InputRouter: Searching for correct GridManager...");
+        
+        // Find all GridManagers in the scene
+        var allGrids = FindObjectsByType<GridManager>(FindObjectsSortMode.None);
+        Debug.Log($"InputRouter: Found {allGrids.Length} GridManager objects");
+        
+        // In multiplayer, we need to find the GridManager that belongs to this client
+        // The host should use playerOneGrid, client should use playerTwoGrid
+        bool isHost = NetworkManager.Singleton.IsHost;
+        
+        foreach (var grid in allGrids)
+        {
+            Debug.Log($"InputRouter: Checking GridManager: {grid.gameObject.name}");
+            
+            // Check if this is the correct grid for this client
+            if (isHost && grid.gameObject.name.Contains("PlayerOne"))
+            {
+                localGrid = grid;
+                Debug.Log($"InputRouter: Assigned host GridManager: {grid.gameObject.name}");
+                return;
+            }
+            else if (!isHost && grid.gameObject.name.Contains("PlayerTwo"))
+            {
+                localGrid = grid;
+                Debug.Log($"InputRouter: Assigned client GridManager: {grid.gameObject.name}");
+                return;
+            }
+        }
+        
+        // Fallback: use any GridManager if we can't find the specific one
+        if (allGrids.Length > 0)
+        {
+            localGrid = allGrids[0];
+            Debug.LogWarning($"InputRouter: Using fallback GridManager: {localGrid.gameObject.name}");
+        }
+        else
+        {
+            Debug.LogError("InputRouter: No GridManager found!");
         }
     }
 

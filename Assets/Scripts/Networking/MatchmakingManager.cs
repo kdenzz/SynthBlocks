@@ -13,6 +13,7 @@ namespace Networking
         [SerializeField] private TMP_Text waitingText;
         [SerializeField] private TMP_Text countdownText;
         [SerializeField] private TMP_Text playerCountText;
+        [SerializeField] private TMP_Text joinCodeText;
         [SerializeField] private Button cancelButton;
         [SerializeField] private Image countdownFill;
 
@@ -24,6 +25,15 @@ namespace Networking
         private bool gameStarted = false;
         private float countdownTimer = 0f;
         private bool hasClientConnected = false;
+
+        void Start()
+        {
+            // Display join code immediately when scene loads
+            DisplayJoinCode();
+            
+            // Start checking for connections immediately
+            InvokeRepeating(nameof(CheckConnections), 0.5f, 0.5f);
+        }
 
         public override void OnNetworkSpawn()
         {
@@ -49,6 +59,84 @@ namespace Networking
             if (cancelButton != null)
             {
                 cancelButton.onClick.AddListener(CancelMatchmaking);
+            }
+        }
+        
+        private void DisplayJoinCode()
+        {
+            // Check for stored join code
+            string storedJoinCode = PlayerPrefs.GetString("RelayJoinCode", "");
+            if (!string.IsNullOrEmpty(storedJoinCode))
+            {
+                Debug.Log($"Found stored join code: {storedJoinCode}");
+                if (joinCodeText != null)
+                {
+                    joinCodeText.text = $"Join Code: {storedJoinCode}";
+                }
+                else
+                {
+                    Debug.LogError("Join Code Text UI element is not assigned!");
+                }
+                // Clear the stored join code after displaying it
+                PlayerPrefs.DeleteKey("RelayJoinCode");
+            }
+            else
+            {
+                Debug.Log("No stored join code found");
+                if (joinCodeText != null)
+                {
+                    joinCodeText.text = "No join code available";
+                }
+            }
+        }
+        
+        private void CheckConnections()
+        {
+            if (NetworkManager.Singleton == null) return;
+            
+            int connectedClients = NetworkManager.Singleton.ConnectedClients.Count;
+            bool isHost = NetworkManager.Singleton.IsHost;
+            bool isClient = NetworkManager.Singleton.IsClient;
+            
+            Debug.Log($"MatchmakingManager: Connected clients: {connectedClients}, IsHost: {isHost}, IsClient: {isClient}");
+            
+            // Update UI based on connection status
+            if (isHost)
+            {
+                if (waitingText != null)
+                {
+                    waitingText.text = $"Waiting for players...\nShare the join code below!\nPlayers: {connectedClients}/2";
+                }
+                
+                // Auto-start countdown if we have 2 players and haven't started yet
+                if (connectedClients >= 2 && !gameStarted)
+                {
+                    Debug.Log("MatchmakingManager: Auto-starting countdown with 2 players!");
+                    // Use direct method call instead of ClientRpc to avoid networking issues
+                    StartCountdownDirect();
+                }
+            }
+            else if (isClient)
+            {
+                if (waitingText != null)
+                {
+                    waitingText.text = "Connected to host!\nWaiting for game to start...";
+                }
+                
+                // Client should also check if countdown should start
+                // This handles cases where the host's countdown doesn't sync properly
+                if (connectedClients >= 2 && !gameStarted)
+                {
+                    Debug.Log("MatchmakingManager: Client detected 2 players, starting countdown!");
+                    StartCountdownDirect();
+                }
+            }
+            else
+            {
+                if (waitingText != null)
+                {
+                    waitingText.text = "Not connected to network";
+                }
             }
         }
 
@@ -81,7 +169,9 @@ namespace Networking
 
             Debug.Log($"Client {clientId} connected. Starting countdown...");
             hasClientConnected = true;
-            StartCountdownClientRpc();
+            
+            // Use direct method call to avoid networking issues
+            StartCountdownDirect();
         }
 
         private void OnClientDisconnected(ulong clientId)
@@ -90,7 +180,26 @@ namespace Networking
 
             Debug.Log($"Client {clientId} disconnected. Stopping countdown...");
             hasClientConnected = false;
-            StopCountdownClientRpc();
+            
+            // Stop countdown directly
+            gameStarted = false;
+            countdownTimer = 0f;
+            
+            // Show waiting message again
+            ShowWaitingForPlayers();
+        }
+
+        private void StartCountdownDirect()
+        {
+            if (gameStarted) return;
+
+            Debug.Log("Starting countdown directly!");
+            gameStarted = true;
+            countdownTimer = countdownDuration;
+            ShowCountdown();
+            
+            // Stop the connection checking since we're starting the game
+            CancelInvoke(nameof(CheckConnections));
         }
 
         [ClientRpc]
@@ -102,6 +211,9 @@ namespace Networking
             gameStarted = true;
             countdownTimer = countdownDuration;
             ShowCountdown();
+            
+            // Stop the connection checking since we're starting the game
+            CancelInvoke(nameof(CheckConnections));
         }
 
         [ClientRpc]
@@ -129,7 +241,7 @@ namespace Networking
             
             if (waitingText != null)
             {
-                waitingText.text = "Waiting for players...";
+                waitingText.text = "Waiting for players...\nShare the join code below!";
             }
             
             if (playerCountText != null)
@@ -198,6 +310,15 @@ namespace Networking
             
             // Return to main menu
             UnityEngine.SceneManagement.SceneManager.LoadScene("MainMenu");
+        }
+        
+        public void ForceStart()
+        {
+            Debug.Log("Force Start button pressed!");
+            if (!gameStarted)
+            {
+                StartCountdownDirect();
+            }
         }
 
         // Called by MultiplayerLobby and RelayConnector
