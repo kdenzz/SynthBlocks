@@ -1,6 +1,7 @@
 using UnityEngine;
 using Unity.Netcode;
 using Unity.Services.Core;
+using Unity.Services.Authentication;
 using Unity.Services.Relay;
 using Unity.Netcode.Transports.UTP;
 using TMPro;
@@ -18,26 +19,34 @@ using RelayJoinAllocation = Unity.Services.Relay.Models.JoinAllocation;
           [SerializeField] private string gameplaySceneName = "GameplayMultiplayer";
 
           private bool isInitialized = false;
+          private bool isAuthenticated = false;
 
           async void Start()
           {
               try
               {
+                  // Initialize Unity Services
                   await UnityServices.InitializeAsync();
-                  isInitialized = true;
                   Debug.Log("Unity Services initialized successfully");
+                  
+                  // Sign in anonymously
+                  await AuthenticationService.Instance.SignInAnonymouslyAsync();
+                  isAuthenticated = true;
+                  Debug.Log("Authentication successful");
+                  
+                  isInitialized = true;
               }
               catch (System.Exception e)
               {
-                  Debug.LogError($"Failed to initialize Unity Services: {e.Message}");
+                  Debug.LogError($"Failed to initialize Unity Services or authenticate: {e.Message}");
               }
           }
 
           public async void HostWithRelay()
           {
-              if (!isInitialized)
+              if (!isInitialized || !isAuthenticated)
               {
-                  Debug.LogError("Unity Services not initialized");
+                  Debug.LogError("Unity Services not initialized or not authenticated");
                   return;
               }
 
@@ -47,8 +56,13 @@ using RelayJoinAllocation = Unity.Services.Relay.Models.JoinAllocation;
                   RelayAllocation allocation = await RelayService.Instance.CreateAllocationAsync(1);
                   string joinCode = await RelayService.Instance.GetJoinCodeAsync(allocation.AllocationId);
 
-                  // Configure transport
+                  // Configure transport for Relay
                   var transport = NetworkManager.Singleton.GetComponent<UnityTransport>();
+                  
+                  // Clear any existing configuration
+                  transport.SetConnectionData("", 0);
+                  
+                  // Set the transport to use Relay (this automatically configures UDP)
                   transport.SetRelayServerData(
                       allocation.RelayServer.IpV4,
                       (ushort)allocation.RelayServer.Port,
@@ -68,6 +82,9 @@ using RelayJoinAllocation = Unity.Services.Relay.Models.JoinAllocation;
                       hostPanel.SetActive(true);
                   }
 
+                  // Wait a frame to ensure transport is properly configured
+                  await System.Threading.Tasks.Task.Delay(100);
+
                    // Start host
                    bool success = NetworkManager.Singleton.StartHost();
                    if (success)
@@ -75,6 +92,10 @@ using RelayJoinAllocation = Unity.Services.Relay.Models.JoinAllocation;
                        Debug.Log($"Host started with join code: {joinCode}");
                        // Load matchmaking scene
                        UnityEngine.SceneManagement.SceneManager.LoadScene("Matchmaking");
+                   }
+                   else
+                   {
+                       Debug.LogError("Failed to start host");
                    }
               }
               catch (System.Exception e)
@@ -85,9 +106,9 @@ using RelayJoinAllocation = Unity.Services.Relay.Models.JoinAllocation;
 
           public async void JoinWithRelay()
           {
-              if (!isInitialized)
+              if (!isInitialized || !isAuthenticated)
               {
-                  Debug.LogError("Unity Services not initialized");
+                  Debug.LogError("Unity Services not initialized or not authenticated");
                   return;
               }
 
@@ -103,8 +124,13 @@ using RelayJoinAllocation = Unity.Services.Relay.Models.JoinAllocation;
                   // Join allocation
                   RelayJoinAllocation joinAllocation = await RelayService.Instance.JoinAllocationAsync(joinCode);
 
-                  // Configure transport
+                  // Configure transport for Relay
                   var transport = NetworkManager.Singleton.GetComponent<UnityTransport>();
+                  
+                  // Clear any existing configuration
+                  transport.SetConnectionData("", 0);
+                  
+                  // Set the transport to use Relay (this automatically configures UDP)
                   transport.SetRelayServerData(
                       joinAllocation.RelayServer.IpV4,
                       (ushort)joinAllocation.RelayServer.Port,
@@ -114,6 +140,9 @@ using RelayJoinAllocation = Unity.Services.Relay.Models.JoinAllocation;
                       joinAllocation.HostConnectionData
                   );
 
+                  // Wait a frame to ensure transport is properly configured
+                  await System.Threading.Tasks.Task.Delay(100);
+
                    // Start client
                    bool success = NetworkManager.Singleton.StartClient();
                    if (success)
@@ -121,6 +150,10 @@ using RelayJoinAllocation = Unity.Services.Relay.Models.JoinAllocation;
                        Debug.Log($"Client started, joining with code: {joinCode}");
                        // Load matchmaking scene
                        UnityEngine.SceneManagement.SceneManager.LoadScene("Matchmaking");
+                   }
+                   else
+                   {
+                       Debug.LogError("Failed to start client");
                    }
               }
               catch (System.Exception e)
